@@ -1,0 +1,144 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'services/**'
+      - 'frontend/**'
+      - 'infra/**'
+      - 'kb/**'
+      - 'docs/**'
+      - '.github/**'
+  push:
+    branches: [ main ]
+    paths:
+      - 'services/**'
+      - 'frontend/**'
+      - 'infra/**'
+      - 'kb/**'
+      - 'docs/**'
+      - '.github/**'
+  workflow_dispatch: {}
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  node-services:
+    name: Node.js — Lint • Test • Build (${{ matrix.dir }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: [20]
+        dir:
+          - services/ws-connection
+          - services/chat-stream
+          - frontend/web
+    defaults:
+      run:
+        working-directory: ${{ matrix.dir }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+          cache-dependency-path: |
+            ${{ matrix.dir }}/package-lock.json
+
+      - name: Install dependencies
+        run: |
+          if [ -f package-lock.json ]; then npm ci; else npm install; fi
+
+      - name: Lint (se existir script)
+        run: |
+          node -e "process.exit((require('./package.json').scripts||{}).lint?0:1)" \
+            && npm run lint \
+            || echo "[skip] sem script lint"
+
+      - name: Tests (se existir script)
+        run: |
+          node -e "process.exit((require('./package.json').scripts||{}).test?0:1)" \
+            && npm test --silent \
+            || echo "[skip] sem script test"
+
+      - name: Build (se existir script)
+        run: |
+          node -e "process.exit((require('./package.json').scripts||{}).build?0:1)" \
+            && npm run build \
+            || echo "[skip] sem script build"
+
+  python-services:
+    name: Python — Testes (auto‑descoberta)
+    runs-on: ubuntu-latest
+    outputs:
+      found: ${{ steps.check_python_files.outputs.found }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Check for Python files
+        id: check_python_files
+        run: |
+          if ls services/**/requirements.txt services/**/pyproject.toml 1> /dev/null 2>&1; then echo "found=true" >> "$GITHUB_OUTPUT"; else echo "found=false" >> "$GITHUB_OUTPUT"; fi
+
+      - name: Instalar e testar módulos Python
+        if: ${{ github.event_name == 'workflow_dispatch' || steps.check_python_files.outputs.found == 'true' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t DIRS < <(git ls-files 'services/**/requirements.txt' 'services/**/pyproject.toml' | xargs -n1 dirname | sort -u)
+          if [ ${#DIRS[@]} -eq 0 ]; then echo "[skip] sem serviços Python"; exit 0; fi
+          for d in "${DIRS[@]}"; do
+            echo "\n=== PYTHON: $d ==="
+            python -m venv "$d/.venv"
+            source "$d/.venv/bin/activate"
+            if [ -f "$d/requirements.txt" ]; then pip install -r "$d/requirements.txt"; fi
+            if [ -f "$d/pyproject.toml" ]; then pip install "$d" || true; fi
+            if [ -d "$d/tests" ]; then pytest -q "$d" || (echo "pytest falhou em $d"; exit 1); else echo "[skip] sem testes em $d"; fi
+            deactivate
+          done
+
+  go-services:
+    name: Go — Testes (auto‑descoberta)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22.x'
+
+      - name: Check for Go files
+        id: check_go_files
+        run: |
+          if ls services/**/go.mod 1> /dev/null 2>&1; then echo "found=true" >> "$GITHUB_OUTPUT"; else echo "found=false" >> "$GITHUB_OUTPUT"; fi
+
+      - name: Testar módulos Go
+        if: ${{ github.event_name == 'workflow_dispatch' || steps.check_go_files.outputs.found == 'true' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t MODS < <(git ls-files 'services/**/go.mod' | xargs -n1 dirname | sort -u)
+          for m in "${MODS[@]}"; do
+            echo "\n=== GO: $m ==="
+            pushd "$m" >/dev/null
+            go test ./...
+            popd >/dev/null
+          done

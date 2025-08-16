@@ -1,21 +1,77 @@
-MIT License
+# LICENÇA DE USO — SOFTWARE PROPRIETÁRIO
 
-Copyright (c) 2025 Maurício Yokoyama Issei
+**Projeto**: AletheIA (ou outro nome aplicável)
+**Titular**: Mauricio Yokoyama Issei
+**Data**: 20225-08-15
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+> Este repositório no GitHub destina‑se exclusivamente a **controle de versão** e **revisão autorizada**. A simples hospedagem do código **não** confere qualquer licença, cessão ou autorização de uso.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+---
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+## 1. Introdução e titularidade dos direitos
+
+Todo o conteúdo deste repositório — incluindo, sem limitação, **código‑fonte**, **binários**, **artefatos de build**, **documentação**, **diagramas**, **modelos de dados**, **testes** e **materiais correlatos** — é **obra intelectual protegida** nos termos da **Lei nº 9.610/1998 (Brasil)** e de **tratados internacionais** aplicáveis (p. ex., Convenção de Berna).
+
+O **direito autoral patrimonial e moral** pertence exclusivamente ao **Titular** acima identificado. **Todos os direitos são reservados**.
+
+A eventual submissão de *issues*, *pull requests* ou quaisquer contribuições somente será admitida mediante **anuência prévia e expressa** do Titular e, quando aplicável, sujeita a contrato específico de cessão/licença de contribuições.
+
+---
+
+## 2. Restrições de uso
+
+**Nenhum** direito de **uso, cópia, modificação, criação de obras derivadas, distribuição, exibição pública, execução, comercialização, sublicenciamento, locação, arrendamento, oferta como serviço (SaaS), *benchmark* público ou privado, engenharia reversa, descompilação ou extração de partes** é concedido por este documento.
+
+Qualquer utilização do software **depende de autorização formal e expressa** do Titular, por meio de **contrato escrito** e válido.
+
+O uso não autorizado constitui **violação de direitos autorais**, sujeito às sanções civis, administrativas e criminais previstas na **Lei nº 9.610/1998**, sem prejuízo das medidas previstas em **tratados internacionais** e demais normas aplicáveis.
+
+**Exceção legal**: restrições acima não se aplicam na medida **estritamente** permitida por normas de **ordem pública** (p. ex., exceções legais de interoperabilidade), devendo o interessado **solicitar orientação prévia** ao Titular antes de qualquer ato potencialmente restrito.
+
+---
+
+## 3. Procedimento para solicitar licença comercial
+
+Empresas, organizações ou indivíduos interessados em **licenciar** o software deverão contatar o Titular pelo canal abaixo, informando:
+
+* **Identificação** (pessoa física/jurídica, CNPJ/CPF, endereço, responsável)
+* **Caso de uso** pretendido (produto/serviço, ambiente, usuários)
+* **Escopo** (território, prazo, volume/usuários, integração com terceiros)
+* **Requisitos** de suporte, atualização e SLA (se houver)
+* **Condições** de segurança, conformidade e privacidade exigidas
+
+**Contato**: mauricio@issei.com.br
+
+A concessão de licença é **discricionária** do Titular e ficará sujeita a **contrato específico**, que poderá prever, entre outras condições: valores, formas de pagamento, limites/quotas de uso, obrigações de confidencialidade, auditoria, suporte, atualização, propriedade de melhorias, garantias e hipóteses de rescisão.
+
+Salvo estipulação **expressa** em contrário, quaisquer licenças serão **não exclusivas**, **intransferíveis** e **revogáveis** em caso de violação contratual ou legal.
+
+---
+
+## 4. Limitação de responsabilidade e garantias
+
+O software é fornecido **“no estado em que se encontra” (AS IS)**, **sem garantias** de qualquer natureza, expressas ou implícitas, incluindo, sem se limitar a, **comercialidade**, **adequação a um propósito específico**, **não infração**, **disponibilidade**, **desempenho**, **segurança** ou **confiabilidade**.
+
+Em **nenhuma hipótese** o Titular será responsável por **danos indiretos, especiais, incidentais, punitivos, exemplares ou consequentes** (incluindo perda de lucros, receitas, dados, uso ou *goodwill*), nem por **interrupção de negócios**, mesmo que avisado da possibilidade de tais danos.
+
+Na extensão máxima permitida pela lei, a **responsabilidade total** do Titular, relacionada de qualquer forma ao software, será **limitada** ao montante efetivamente pago pelo licenciado ao Titular sob contrato específico de licença, se existente.
+
+---
+
+## 5. Legislação aplicável e foro
+
+Esta licença será regida e interpretada de acordo com as **leis da República Federativa do Brasil**, em especial a **Lei nº 9.610/1998**, sem consideração a princípios de conflitos de leis.
+
+Fica eleito o **Foro da Comarca de São Paulo/SP**, com **renúncia** a qualquer outro, por mais privilegiado que seja, para dirimir dúvidas ou controvérsias relacionadas a este instrumento, **sem prejuízo** da possibilidade de o Titular adotar **medidas de urgência** (p. ex., tutela inibitória) em qualquer jurisdição competente.
+
+---
+
+## 6. Disposições adicionais
+
+* **Dependências de terceiros** (bibliotecas/SDKs) usadas pelo projeto permanecem sob suas **próprias licenças**. O uso pelo licenciado deverá respeitar tais termos.
+* **Marcas, nomes empresariais e sinais distintivos** mencionados pertencem a seus respectivos titulares; seu uso não implica concessão de qualquer direito.
+* O Titular poderá **atualizar** este documento a qualquer tempo; a versão aplicável será a vigente na data da contratação ou, quando previsto em contrato, a última versão publicada.
+
+---
+
+**© 2025 Mauricio Yokoyama Issei. Todos os direitos reservados.**

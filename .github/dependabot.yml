@@ -1,0 +1,121 @@
+version: 2
+
+updates:
+  # --- GitHub Actions ---
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "03:00"
+      timezone: "America/Sao_Paulo"
+    rebase-strategy: "auto"
+    open-pull-requests-limit: 10
+    labels: ["dependencies", "security", "ci"]
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+
+  # --- NPM workspaces / projetos Node ---
+  - package-ecosystem: "npm"
+    directory: "/services/ws-connection"
+    schedule:
+      interval: "daily"
+      time: "03:30"
+      timezone: "America/Sao_Paulo"
+    rebase-strategy: "auto"
+    versioning-strategy: increase
+    open-pull-requests-limit: 10
+    labels: ["dependencies", "node"]
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    groups:
+      aws-sdk:
+        patterns: ["aws-sdk*", "@aws-sdk/*"]
+      dev-deps:
+        dependency-type: "development"
+
+  - package-ecosystem: "npm"
+    directory: "/services/chat-stream"
+    schedule:
+      interval: "daily"
+      time: "03:35"
+      timezone: "America/Sao_Paulo"
+    rebase-strategy: "auto"
+    versioning-strategy: increase
+    open-pull-requests-limit: 10
+    labels: ["dependencies", "node"]
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    groups:
+      aws-sdk:
+        patterns: ["aws-sdk*", "@aws-sdk/*"]
+      dev-deps:
+        dependency-type: "development"
+
+  - package-ecosystem: "npm"
+    directory: "/frontend/web"
+    schedule:
+      interval: "daily"
+      time: "03:40"
+      timezone: "America/Sao_Paulo"
+    rebase-strategy: "auto"
+    versioning-strategy: increase
+    open-pull-requests-limit: 10
+    labels: ["dependencies", "frontend"]
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    groups:
+      build-tooling:
+        patterns: ["vite*", "webpack*", "rollup*", "esbuild*"]
+      dev-deps:
+        dependency-type: "development"
+
+  # --- Terraform modules/providers ---
+  - package-ecosystem: "terraform"
+    directory: "/infra/terraform"
+    schedule:
+      interval: "weekly"
+      day: "tuesday"
+      time: "03:45"
+      timezone: "America/Sao_Paulo"
+    rebase-strategy: "auto"
+    open-pull-requests-limit: 10
+    labels: ["dependencies", "infra", "terraform"]
+    commit-message:
+      prefix: "deps(terra)"
+      include: "scope"
+
+  # --- Python (se houver serviços Python) ---
+  # Duplique este bloco para cada diretório que contenha requirements.txt ou pyproject.toml
+  # - package-ecosystem: "pip"
+  #   directory: "/services/<seu-servico-python>"
+  #   schedule:
+  #     interval: "weekly"
+  #     day: "wednesday"
+  #     time: "03:50"
+  #     timezone: "America/Sao_Paulo"
+  #   rebase-strategy: "auto"
+  #   open-pull-requests-limit: 10
+  #   labels: ["dependencies", "python"]
+  #   commit-message:
+  #     prefix: "deps(pip)"
+  #     include: "scope"
+
+  # --- Go modules (se houver) ---
+  # - package-ecosystem: "gomod"
+  #   directory: "/services/<seu-modulo-go>"
+  #   schedule:
+  #     interval: "weekly"
+  #     day: "wednesday"
+  #     time: "03:55"
+  #     timezone: "America/Sao_Paulo"
+  #   rebase-strategy: "auto"
+  #   open-pull-requests-limit: 10
+  #   labels: ["dependencies", "go"]
+  #   commit-message:
+  #     prefix: "deps(go)"
+  #     include: "scope"

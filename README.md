@@ -1,6 +1,9 @@
 # AletheIA — Plataforma de Investigação de Problemas com IA (AWS Serverless)
 
+> **Status**: Software **proprietário** — consulte **LICENSE.md** (uso restrito; todos os direitos reservados).
+>
 > **Missão**: descobrir, explicar e resolver problemas com agentes de IA colaborativos, streaming em tempo real e orquestração serverless — com segurança, observabilidade e FinOps desde o dia 1.
+> **Nome***: AletheIA (do grego "verdade", "realidade") reflete a busca pela verdade em investigações complexas.
 
 ---
 
@@ -18,6 +21,12 @@
 * [Testes](#testes)
 * [Observabilidade & FinOps](#observabilidade--finops)
 * [Planejamento & Tarefas](#planejamento--tarefas)
+* [Política de branches e commits](#política-de-branches-e-commits)
+* [Checklist de PR (DoD)](#checklist-de-pr-dod)
+* [Matriz de variáveis de ambiente](#matriz-de-variáveis-de-ambiente)
+* [Operação e incidentes](#operação-e-incidentes)
+* [Base de conhecimento “AI‑friendly”](#base-de-conhecimento-ai-friendly)
+* [Roadmap](#roadmap)
 * [Contribuição](#contribuição)
 * [Licença](#licença)
 
@@ -27,7 +36,7 @@
 
 A **AletheIA** é um sistema de **investigação assistida por IA**. A experiência do usuário é um chat **tempo real** (WebSocket) que conduz a entrevista, consolida contexto, prioriza causas e propõe planos de ação. O backend é **serverless** na AWS, com **Step Functions** orquestrando etapas, **Lambdas** para conexão/stream/persistência e **DynamoDB** como armazenamento de histórico.
 
-**Capacidades principais**
+**Capacidades**
 
 * Streaming **token‑a‑token** via API Gateway **WebSocket**.
 * Orquestração de prompts/etapas com **AWS Step Functions**.
@@ -114,39 +123,25 @@ flowchart LR
 │     │  ├─ observability/
 │     │  └─ iam_oidc_github/
 │     └─ envs/
-│        ├─ dev/
-│        │  ├─ main.tf  # chama módulos
-│        │  ├─ backend.tf  # S3 state + DynamoDB lock
-│        │  └─ variables.tf
+│        ├─ dev/ (main.tf, backend.tf, variables.tf)
 │        ├─ stg/
 │        └─ prd/
 │
 ├─ services/
-│  ├─ ws-connection/
-│  │  ├─ src/ (ConnectFunction.js, disconnectWS.js)
-│  │  ├─ tests/
-│  │  └─ README.md
-│  ├─ chat-stream/
-│  │  ├─ src/ (GenerateChunk.js, PreparePrompt.js, SaveChatHistory.js)
-│  │  ├─ tests/
-│  │  └─ README.md
-│  └─ <svc-others>/  # microsserviços em Node/Python/Go, se necessário
+│  ├─ ws-connection/ (ConnectFunction.js, disconnectWS.js, tests/)
+│  ├─ chat-stream/ (GenerateChunk.js, PreparePrompt.js, SaveChatHistory.js, tests/)
+│  └─ orchestration/ (snippets, contratos, testes ASL)
 │
 ├─ frontend/
 │  └─ web/ (public/index.html, src/, tests/)
 │
-├─ docs/
-│  ├─ architecture/ (visão-geral.md, ADRs, diagramas)
-│  ├─ operations/ (playbooks, observabilidade.md)
-│  ├─ security/ (iam-policies.md, dados-sensiveis.md)
-│  └─ finops/ (custos-estimados.md, budgets-alertas.md)
-│
-├─ kb/                           # base “AI‑friendly” (MDs curtos com front‑matter)
-├─ scripts/                      # utilitários (build, lint, empacote lambdas)
+├─ docs/ (architecture/, operations/, security/, finops/)
+├─ kb/   (conteúdo curto “AI‑friendly” com front‑matter)
+├─ scripts/
 ├─ .editorconfig
 ├─ .gitignore
 ├─ .gitattributes
-└─ README.md                     # este arquivo
+└─ README.md (este arquivo)
 ```
 
 ---
@@ -154,18 +149,18 @@ flowchart LR
 ## Pré-requisitos
 
 * **AWS**: conta e permissões para criar recursos serverless.
-* **Terraform ≥ 1.6** e **AWS CLI v2**.
+* **Terraform ≥ 1.6**, **AWS CLI v2**.
 * **Node.js ≥ 20** (e linguagens extras conforme cada serviço).
-* **GitHub Actions** habilitado no repositório (com **OIDC** para assumir Role na AWS).
+* **GitHub Actions** habilitado (OIDC para assumir Role na AWS).
 
 ---
 
 ## Configuração inicial
 
-1. **State remoto do Terraform**: crie S3 (versionado) + DynamoDB (lock).
-2. **Role OIDC para GitHub Actions**: módulo `iam_oidc_github` (trust para seu repo).
-3. **Secrets/Parameters** (OpenAI/Bedrock e configs) no **AWS Secrets Manager/Parameter Store**.
-4. **Buckets** (S3 website) e tabelas DynamoDB conforme módulos.
+1. **State remoto do Terraform**: S3 (versionado) + DynamoDB (lock).
+2. **Role OIDC**: módulo `iam_oidc_github` (trust para este repositório).
+3. **Secrets/Parameters** (OpenAI/Bedrock etc.) em **AWS Secrets Manager/SSM**.
+4. **Buckets/Tabelas** conforme módulos (S3 website, DynamoDB conversas/mensagens/conexões com TTL).
 
 > Nunca commite segredos. O CI assume role via OIDC e lê segredos **somente** em `deploy`.
 
@@ -173,25 +168,25 @@ flowchart LR
 
 ## Infra como código (Terraform)
 
-**Ambientes**: `infra/terraform/envs/{dev,stg,prd}`.
+Ambientes em `infra/terraform/envs/{dev,stg,prd}`.
 
 ```bash
 cd infra/terraform/envs/dev
-terraform init   # usa backend S3/Dynamo configurado em backend.tf
+terraform init   # usa backend S3/Dynamo
 terraform plan -out=tfplan
 terraform apply tfplan
 ```
 
-Variáveis sensíveis → Parameter Store/Secrets; valores não sensíveis → `*.tfvars` por ambiente.
+Variáveis sensíveis → SSM/Secrets; não sensíveis → `*.tfvars` por ambiente.
 
 ---
 
 ## CI/CD (GitHub Actions)
 
 * **ci.yml**: lint/test/build por serviço; cobertura mínima.
-* **tf-plan.yml**: `terraform plan` em PRs (dev). Artefato `tfplan` publicado.
+* **tf-plan.yml**: `terraform plan` em PRs (dev); artefato `tfplan` publicado.
 * **tf-apply.yml**: `apply` via **environment** com **aprovação** (stg/prd).
-* **security.yml**: scanners (secret scan, SAST), dependencia/bot.
+* **security.yml**: scanners (secret scan, deps, SAST).
 
 **Fluxo**
 
@@ -214,21 +209,21 @@ sequenceDiagram
 
 ## Segurança
 
-* **Sem segredos no repo** (use SM/PS). Branch protection + CODEOWNERS + status checks.
-* **Least‑Privilege** por função (Lambda, Terraform, workflows). Evite `*` em `Resource`.
-* **Criptografia** (KMS) em dados/ambiente; mascaramento de PII em logs.
-* **TTL** para conexões/itens temporários; rate limits e **concorrência** por função.
-* (Opcional) **WAF** no API Gateway e Origin Policy no S3/CloudFront.
+* **Sem segredos no repo** (SM/SSM). Branch protection + CODEOWNERS + status checks.
+* **Least‑Privilege** por Lambda/estado SFN; políticas com `Resource` específico.
+* **Criptografia** (KMS) em dados/ambiente; mascaramento de PII nos logs.
+* **TTL** para conexões/itens temporários; *rate limits* e **concorrência** por função.
+* (Opcional) **WAF/Shield** no API Gateway público e restrição de origem.
 
 ---
 
 ## Desenvolvimento local
 
-* **Frontend**: `frontend/web` → qualquer dev server (ex.: `npm run dev`).
+* **Frontend**: `frontend/web` → seu dev server.
 * **Lambdas**: testes unitários com mocks do SDK AWS. Empacote com scripts em `/scripts`.
 * **Emuladores** (opcional): DynamoDB Local, Step Functions Local.
 
-### Convenções
+**Convenções**
 
 * **Conventional Commits** (`feat:`, `fix:`, `chore:` …) e PRs pequenos.
 * **ADRs** curtos em `docs/architecture/decisões/`.
@@ -238,10 +233,10 @@ sequenceDiagram
 
 ## Testes
 
-* **Unitários**: por serviço (`/services/*/tests`).
-* **Integração**: WebSocket (conexão/reconexão/ordem de chunks), Step Functions (caminhos), DynamoDB (idempotência/TTL).
-* **E2E**: fluxo conversa → persistência → métricas.
-* **Critérios**: cobertura mínima acordada; TTFT P95, erro de streaming, duplicatas=0 em replays.
+* **Unitários** por serviço (`/services/*/tests`).
+* **Integração**: WebSocket (connect→send→chunks→final), Step Functions (caminhos), DynamoDB (idempotência/TTL).
+* **E2E**: conversa → persistência → métricas.
+* **Critérios**: cobertura mínima acordada; TTFT P95, erro de streaming ≤ 1%, duplicatas=0 em replays.
 
 ---
 
@@ -265,20 +260,98 @@ O planejamento versionado vive em **`/.planning`**:
 
 ---
 
+## Política de branches e commits
+
+* **Branches**: `main` (estável), `feat/*`, `fix/*`, `chore/*`, `docs/*`, `infra/*`.
+* **Commits** (Conventional): `feat:`, `fix:`, `refactor:`, `perf:`, `test:`, `docs:`, `build:`, `ci:`, `chore:`.
+* **PRs pequenos** (≤ 400 linhas úteis) e focados em um objetivo.
+* **Proteções**: `main` com revisão obrigatória, checks de CI e bloqueio de *force‑push*.
+
+---
+
+## Checklist de PR (DoD)
+
+1. **Compila/Testa** localmente e no CI (verde).
+2. **Cobertura** ≥ 80% no serviço afetado.
+3. **Logging** consistente (JSON com `correlationId`/`messageId`).
+4. **IAM** sem curingas; variáveis sensíveis **não** commitadas.
+5. **Docs** atualizadas (`/docs` ou `/kb`) quando houver mudança de contrato/fluxo.
+6. **Planejamento**: se criar/alterar esforço, atualize `/.planning/tasks.json`.
+
+---
+
+## Matriz de variáveis de ambiente
+
+> Valores sensíveis devem vir de **Secrets Manager**/SSM; abaixo, **nomes** esperados e finalidade.
+
+### `services/chat-stream`
+
+| Variável                                                       | Finalidade              | Sensível |
+| -------------------------------------------------------------- | ----------------------- | -------- |
+| `WS_ENDPOINT`                                                  | Post no API GW WS       | Não      |
+| `MODEL_ID`                                                     | LLM alvo                | Não      |
+| `OPENAI_API_KEY` / `BEDROCK_*`                                 | Credenciais de modelo   | **Sim**  |
+| `TABLE_CONVERSATIONS` / `TABLE_MESSAGES` / `TABLE_CONNECTIONS` | Tabelas DDB             | Não      |
+| `STREAM_CHUNK_MS`                                              | Throttle de envio       | Não      |
+| `LOG_LEVEL`                                                    | `INFO/DEBUG/WARN/ERROR` | Não      |
+
+### `services/ws-connection`
+
+| Variável            | Finalidade                  | Sensível |
+| ------------------- | --------------------------- | -------- |
+| `CONNECTIONS_TABLE` | Tabela de conexões WS (TTL) | Não      |
+| `ALLOWED_ORIGINS`   | Controle simples de origem  | Não      |
+
+> Documente variáveis adicionais por serviço no respectivo `README.md`.
+
+---
+
+## Operação e incidentes
+
+* **Severidades**: S1 (indisponibilidade ampla), S2 (degradação), S3 (falha parcial), S4 (cosmético).
+* **Resposta**: abertura de incidente, canal dedicado, *owner* claro, atualização a cada 30–60 min.
+* **Pós‑mortem leve** (≤ 1 página): causa raiz, ações corretivas, prevenção.
+
+---
+
+## Base de conhecimento “AI‑friendly”
+
+* Arquivos em `/kb` com **front‑matter** YAML:
+
+  ```md
+  ---
+  title: "Contrato de Mensagens WS"
+  tags: ["websocket","streaming","frontend"]
+  service: "chat-stream"
+  updated_at: "2025-08-16"
+  ---
+  ```
+* Um tópico por arquivo, exemplos curtos, decisões e links cruzados.
+
+**Links úteis**: `docs/architecture/` (visão e ADRs); `services/*/README.md`; `infra/terraform/`; `/.planning`.
+
+---
+
+## Roadmap
+
+* **Stream direto** Lambda→WS (SFN apenas para orquestrações macro).
+* **Idempotência plena** em `SaveChatHistory` e schema DDB formal (PK/SK + GSI por e‑mail hash + TTL).
+* **Métricas de custo por conversa** via EMF + orçamento/alarme.
+* **WAF/Shield** (se público) e *rate limiting* no WS.
+* **Testes de caos** (rede, throttling, cold starts) automatizados.
+
+---
+
 ## Contribuição
 
-1. Crie uma **branch** a partir de `main`.
-2. Faça **commits pequenos** e com **Conventional Commits**.
-3. Abra **PR** com descrição clara e links (issue/diagramas/execução).
-4. Aguarde **CI verde** (lint, testes, plan) e **review**.
-
-**Definições**
-
-* **DoR**: objetivo, critérios de aceite, impacto/esforço, rollback.
-* **DoD**: testes OK, observabilidade configurada, docs/ADRs atualizadas, deploy realizado.
+1. Crie branch a partir de `main`.
+2. Siga **Conventional Commits**.
+3. Abra PR com o **checklist** preenchido.
+4. Aguarde CI verde e **review**.
+5. *Merge* via **squash**.
 
 ---
 
 ## Licença
 
-Defina a licença do projeto (ex.: MIT, Apache‑2.0) e adicione o arquivo `LICENSE` na raiz.
+Este repositório é **fechado**. A leitura do código **não** confere licença de uso. Consulte **LICENSE.md** para termos e para o procedimento de **licenciamento comercial**.

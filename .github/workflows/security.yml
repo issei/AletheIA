@@ -1,0 +1,245 @@
+name: Security
+
+on:
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'services/**'
+      - 'frontend/**'
+      - 'infra/**'
+      - '.github/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '**/requirements.txt'
+      - '**/pyproject.toml'
+      - '**/go.mod'
+  push:
+    branches: [ main ]
+    paths:
+      - 'services/**'
+      - 'frontend/**'
+      - 'infra/**'
+      - '.github/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '**/requirements.txt'
+      - '**/pyproject.toml'
+      - '**/go.mod'
+  schedule:
+    - cron: '15 3 * * 1'  # semanal (segundas 03:15 UTC)
+  workflow_dispatch: {}
+
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  dependency-review:
+    name: Dependency Review (PR)
+    if: ${{ github.event_name == 'pull_request' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Dependency Review
+        uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+          allow-ghsas: ''
+
+  codeql-js:
+    name: CodeQL — JS/TS
+    if: ${{ github.event_name == 'push' || github.event_name == 'pull_request' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: javascript-typescript
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+
+  codeql-py:
+    name: CodeQL — Python
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+    steps:
+      - name: Check for Python files
+        id: check_python
+        shell: bash
+        run: |
+          if git ls-files '**/*.py' '**/requirements.txt' '**/pyproject.toml' | grep -q .; then
+            echo "found=true" >> $GITHUB_OUTPUT
+          else
+            echo "found=false" >> $GITHUB_OUTPUT
+          fi
+      - name: Checkout
+        if: steps.check_python.outputs.found == 'true'
+        uses: actions/checkout@v4
+      - name: Initialize CodeQL
+        if: steps.check_python.outputs.found == 'true'
+        uses: github/codeql-action/init@v3
+        with:
+          languages: python
+      - name: Perform CodeQL Analysis
+        if: steps.check_python.outputs.found == 'true'
+        uses: github/codeql-action/analyze@v3
+
+  codeql-go:
+    name: CodeQL — Go
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+    steps:
+      - name: Check for go.mod files
+        id: check_go_mod
+        shell: bash
+        run: |
+          if git ls-files '**/go.mod' | grep -q .; then
+            echo "found=true" >> $GITHUB_OUTPUT
+          else
+            echo "found=false" >> $GITHUB_OUTPUT
+          fi
+      - name: Checkout
+        if: steps.check_go_mod.outputs.found == 'true'
+        uses: actions/checkout@v4
+      - name: Initialize CodeQL
+        if: steps.check_go_mod.outputs.found == 'true'
+        uses: github/codeql-action/init@v3
+        with:
+          languages: go
+      - name: Perform CodeQL Analysis
+        if: steps.check_go_mod.outputs.found == 'true'
+        uses: github/codeql-action/analyze@v3
+
+  secrets:
+    name: Secret Scanning — TruffleHog
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout (full)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: TruffleHog scan
+        uses: trufflesecurity/trufflehog@v3
+        with:
+          scan: filesystem
+          path: .
+          extra_args: --no-update --only-verified --fail --format sarif --output trufflehog.sarif
+      - name: Upload SARIF to Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: trufflehog.sarif
+
+  dep-audit-node:
+    name: Dependency Audit — npm
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - name: Check for package.json files
+        id: check_node_pkgs
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! git ls-files '**/package.json' | grep -q .; then
+            echo "No package.json files found, skipping npm audit."
+            echo "skip=true" >> $GITHUB_OUTPUT
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Run npm audit (high+)
+        if: steps.check_node_pkgs.outputs.skip == 'false'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t PKGS < <(git ls-files '**/package.json' | xargs -n1 dirname | sort -u)
+          for d in "${PKGS[@]}"; do
+            echo "\n=== npm audit: $d ==="
+            pushd "$d" >/dev/null
+            if [ -f package-lock.json ]; then npm ci --prefer-offline; else npm install --prefer-offline; fi
+            # falha se houver vulnerabilidades high/critical
+            npm audit --omit=dev --audit-level=high || (echo "Vulnerabilidades altas em $d"; exit 1)
+            popd >/dev/null
+          done
+
+  dep-audit-python:
+    name: Dependency Audit — pip
+    if: ${{ github.event_name != 'schedule' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install pip-audit
+        run: pip install pip-audit
+      - name: Run pip-audit (strict)
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t REQS < <(git ls-files '**/requirements.txt')
+          for f in "${REQS[@]}"; do
+            echo "\n=== pip-audit: $f ==="
+            pip-audit -r "$f" -l --strict
+          done
+
+  dep-audit-go:
+    name: SAST — gosec
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22.x'
+      - name: Install gosec
+        run: go install github.com/securego/gosec/v2/cmd/gosec@latest
+      - name: Run gosec and output SARIF
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t MODS < <(git ls-files '**/go.mod' | xargs -n1 dirname | sort -u)
+          for m in "${MODS[@]}"; do
+            echo "\n=== gosec: $m ==="
+            gosec -quiet -fmt=sarif -out "$m/gosec.sarif" "./$m/..." || true
+          done
+      - name: Upload SARIFs
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: |
+            **/gosec.sarif

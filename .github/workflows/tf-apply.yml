@@ -1,0 +1,104 @@
+name: Terraform Apply
+
+on:
+  # Auto‑apply em DEV quando houver mudanças de infra na main
+  push:
+    branches: [ main ]
+    paths:
+      - 'infra/**'
+  # Aplicação manual (DEV/STG/PRD) com aprovação via Environments
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Ambiente para aplicar
+        type: choice
+        required: true
+        options: [dev, stg, prd]
+        default: stg
+
+concurrency:
+  group: tf-apply-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write   # Necessário para OIDC (assume role na AWS)
+
+jobs:
+  apply-dev-on-push:
+    name: Apply DEV (push)
+    if: ${{ github.event_name == 'push' }}
+    runs-on: ubuntu-latest
+    environment: dev
+    defaults:
+      run:
+        working-directory: infra/terraform/envs/dev
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      - name: Configure AWS via OIDC (DEV)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION || 'us-east-1' }}
+
+      - name: Cache Terraform plugins
+        uses: actions/cache@v4
+        with:
+          path: ~/.terraform.d/plugin-cache
+          key: ${{ runner.os }}-terraform-${{ hashFiles('infra/terraform/envs/dev/.terraform.lock.hcl') }}
+
+      - name: Terraform Init
+        run: terraform init -input=false
+
+      - name: Terraform Plan
+        run: terraform plan -input=false -out=tfplan
+
+      - name: Terraform Apply
+        run: terraform apply -input=false -auto-approve tfplan
+
+  apply-manual:
+    name: Apply ${{ inputs.environment }} (manual)
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    env:
+      TF_DIR: infra/terraform/envs/${{ inputs.environment }}
+    defaults:
+      run:
+        working-directory: ${{ env.TF_DIR }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      - name: Configure AWS via OIDC (${{ inputs.environment }})
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION || 'us-east-1' }}
+
+      - name: Cache Terraform plugins
+        uses: actions/cache@v4
+        with:
+          path: ~/.terraform.d/plugin-cache
+          key: ${{ runner.os }}-terraform-${{ hashFiles(format('infra/terraform/envs/{0}/.terraform.lock.hcl', inputs.environment)) }}
+
+      - name: Terraform Init
+        run: terraform init -input=false
+
+      - name: Terraform Plan
+        run: terraform plan -input=false -out=tfplan
+
+      - name: Terraform Apply (auto‑approve)
+        run: terraform apply -input=false -auto-approve tfplan
