@@ -62,7 +62,7 @@ import {
 // Bedrock Runtime é opcional; carregaremos dinamicamente quando necessário
 let BedrockRuntimeClient, InvokeModelWithResponseStreamCommand
 
-// ------------------------- Utilidades básicas -------------------------------
+// ------------------------- Utilidades -------------------------
 const ENV = {
   provider: process.env.LLM_PROVIDER?.toLowerCase() || 'openai',
   model: process.env.MODEL_ID || 'gpt-4o-mini',
@@ -81,13 +81,7 @@ const logger = (() => {
     return order[lvl] >= order[ENV.logLevel]
   }
   const base = (level, obj) => {
-    const out = {
-      level,
-      svc: 'chat-stream',
-      at: new Date().toISOString(),
-      ...obj,
-    }
-    console.log(JSON.stringify(out))
+    console.log(JSON.stringify({ level, svc: 'chat-stream', at: new Date().toISOString(), ...obj }))
   }
   return {
     debug: (o) => should('DEBUG') && base('DEBUG', o),
@@ -97,25 +91,12 @@ const logger = (() => {
   }
 })()
 
-const safeJsonParse = (s) => {
-  try { return JSON.parse(s) } catch { return null }
-}
+const safeJsonParse = (s) => { try { return JSON.parse(s) } catch { return null } }
 
-const httpJson = async (url, init = {}) => {
-  const res = await fetch(url, {
-    ...init,
-    headers: { 'content-type': 'application/json', ...(init.headers || {}) },
-  })
-  return { res, json: res.ok ? await res.json() : null }
-}
-
-// Backoff exponencial com jitter
 async function withRetry(name, fn, { tries = 3, baseMs = 300, maxMs = 3000 } = {}) {
   let attempt = 0
   for (;;) {
-    try {
-      return await fn(attempt)
-    } catch (err) {
+    try { return await fn(attempt) } catch (err) {
       attempt++
       if (attempt >= tries) throw err
       const delay = Math.min(baseMs * 2 ** attempt, maxMs) * (0.5 + Math.random())
@@ -125,39 +106,30 @@ async function withRetry(name, fn, { tries = 3, baseMs = 300, maxMs = 3000 } = {
   }
 }
 
-// --------------------------- Secrets ----------------------------------------
+// --------------------------- Secrets ---------------------------
 const smClient = new SecretsManagerClient({})
 
 async function getOpenAIConfig() {
-  // Ordem de precedência: OPENAI_SECRET_ID -> OPENAI_API_KEY -> erro
   if (ENV.openaiSecretId) {
     const data = await smClient.send(new GetSecretValueCommand({ SecretId: ENV.openaiSecretId }))
     const secret = typeof data.SecretString === 'string' ? JSON.parse(data.SecretString) : {}
-    return {
-      apiKey: secret.apiKey || ENV.openaiApiKey,
-      baseUrl: secret.baseUrl || ENV.openaiBaseUrl || 'https://api.openai.com',
-    }
+    return { apiKey: secret.apiKey || ENV.openaiApiKey, baseUrl: secret.baseUrl || ENV.openaiBaseUrl || 'https://api.openai.com' }
   }
-  if (ENV.openaiApiKey) {
-    return { apiKey: ENV.openaiApiKey, baseUrl: ENV.openaiBaseUrl || 'https://api.openai.com' }
-  }
+  if (ENV.openaiApiKey) return { apiKey: ENV.openaiApiKey, baseUrl: ENV.openaiBaseUrl || 'https://api.openai.com' }
   throw new Error('OPENAI_API_KEY/OPENAI_SECRET_ID não configurado')
 }
 
-// --------------------------- WS client --------------------------------------
+// --------------------------- WS client ------------------------
 function buildWsEndpointFromEvent(event) {
   const { domainName, stage } = event.requestContext || {}
   if (!domainName || !stage) return ''
-  // Para ApiGatewayManagementApi, o endpoint deve ser HTTPS e não WSS
-  return `https://${domainName}/${stage}`
+  return `https://${domainName}/${stage}` // ApiGatewayManagementApi pede HTTPS
 }
-
 function wsClientFor(event) {
   const endpoint = ENV.wsEndpoint || buildWsEndpointFromEvent(event)
   if (!endpoint) throw new Error('WS endpoint não disponível')
   return new ApiGatewayManagementApiClient({ endpoint })
 }
-
 async function postToWs(client, connectionId, data, { tries = 3 } = {}) {
   const payload = typeof data === 'string' ? data : JSON.stringify(data)
   return withRetry('ws-post', async () => {
@@ -165,8 +137,7 @@ async function postToWs(client, connectionId, data, { tries = 3 } = {}) {
       await client.send(new PostToConnectionCommand({ ConnectionId: connectionId, Data: Buffer.from(payload) }))
       return true
     } catch (err) {
-      // 410 Gone → conexão foi encerrada; não retry agressivo
-      if (err?.$metadata?.httpStatusCode === 410) {
+      if (err?.$metadata?.httpStatusCode === 410) { // Gone
         logger.warn({ msg: 'ws.gone', connectionId })
         throw err
       }
@@ -194,35 +165,27 @@ async function * openaiStream({ model, inputText }) {
     temperature: 0.2,
     top_p: 0.95,
   }
-
   const res = await fetch(url, {
     method: 'POST',
-    headers: { 'content-type': 'application/json', 'authorization': `Bearer ${apiKey}` },
+    headers: { 'content-type': 'application/json', authorization: `Bearer ${apiKey}` },
     body: JSON.stringify(body),
   })
   if (!res.ok || !res.body) {
     const text = await res.text().catch(() => '')
     throw new Error(`openai http ${res.status}: ${text?.slice(0, 300)}`)
   }
-
   const reader = res.body.getReader()
   const decoder = new TextDecoder('utf-8')
   let buffer = ''
   for (;;) {
-    const { value, done } = await reader.read()
-    if (done) break
+    const { value, done } = await reader.read(); if (done) break
     buffer += decoder.decode(value, { stream: true })
     let idx
     while ((idx = buffer.indexOf('\n\n')) >= 0) {
-      const chunk = buffer.slice(0, idx)
-      buffer = buffer.slice(idx + 2)
-      const line = chunk.trim()
-      if (!line) continue
-      // Formato SSE: "data: {json}" ou "data: [DONE]"
-      const match = /^data:\s*(.*)$/i.exec(line)
-      if (!match) continue
-      const data = match[1]
-      if (data === '[DONE]') return
+      const chunk = buffer.slice(0, idx); buffer = buffer.slice(idx + 2)
+      const line = chunk.trim(); if (!line) continue
+      const match = /^data:\s*(.*)$/i.exec(line); if (!match) continue
+      const data = match[1]; if (data === '[DONE]') return
       const j = safeJsonParse(data)
       const token = j?.choices?.[0]?.delta?.content || ''
       if (token) yield token
@@ -236,7 +199,6 @@ async function * openaiStream({ model, inputText }) {
  */
 async function * bedrockStream({ model, inputText }) {
   if (!BedrockRuntimeClient) {
-    // import dinâmico para reduzir cold start quando não usado
     const mod = await import('@aws-sdk/client-bedrock-runtime')
     BedrockRuntimeClient = mod.BedrockRuntimeClient
     InvokeModelWithResponseStreamCommand = mod.InvokeModelWithResponseStreamCommand
@@ -250,52 +212,37 @@ async function * bedrockStream({ model, inputText }) {
     stream: true,
   }
   const cmd = new InvokeModelWithResponseStreamCommand({
-    modelId: model,
-    contentType: 'application/json',
-    accept: 'application/json',
-    body: JSON.stringify(payload),
+    modelId: model, contentType: 'application/json', accept: 'application/json', body: JSON.stringify(payload),
   })
-
   const resp = await br.send(cmd)
   const stream = resp.body
   // eventos stream: chunk.bytes (Uint8Array) contendo JSON
   const decoder = new TextDecoder()
   for await (const evt of stream) {
-    const bytes = evt?.chunk?.bytes
-    if (!bytes) continue
+    const bytes = evt?.chunk?.bytes; if (!bytes) continue
     const s = decoder.decode(bytes)
     const j = safeJsonParse(s)
-    // Eventos típicos anthropic: content_block_delta { delta: { type: 'text_delta', text: '...' } }
     const text = j?.delta?.text || j?.content_block?.text || ''
     if (text) yield text
   }
 }
+const getStreamForProvider = (p) => (p === 'bedrock' ? bedrockStream : openaiStream)
 
-function getStreamForProvider(provider) {
-  if (provider === 'bedrock') return bedrockStream
-  return openaiStream
-}
-
-// ---------------------------- Cálculo de custo ------------------------------
-function estimateTokensFromText(text) {
-  // aproximação: ~4 chars por token inglês/pt (grossa, mas útil p/ métrica)
-  const chars = [...(text || '')].length
-  return Math.max(1, Math.ceil(chars / 4))
-}
-
+// ------------------------- Custo/uso (estimativas) ----------
+const estimateTokensFromText = (text) => Math.max(1, Math.ceil([...(text || '')].length / 4))
 function estimateCostUSD(tokensIn, tokensOut) {
   const inCost = (tokensIn / 1000) * (ENV.pricingIn || 0)
   const outCost = (tokensOut / 1000) * (ENV.pricingOut || 0)
   return +(inCost + outCost).toFixed(6)
 }
 
-// ---------------------------- Handler principal -----------------------------
+// ---------------------------- Handler ------------------------
 export const handler = async (event) => {
   const tStart = Date.now()
   const connectionId = event?.requestContext?.connectionId
   const ws = wsClientFor(event)
 
-  let input = typeof event.body === 'string' ? safeJsonParse(event.body) : event
+  const input = typeof event.body === 'string' ? safeJsonParse(event.body) : event
   if (!input) throw new Error('payload inválido')
 
   // Validação mínima
@@ -305,8 +252,16 @@ export const handler = async (event) => {
   const text = input?.payload?.text?.toString?.() || ''
   if (!text) throw new Error('payload.payload.text ausente')
 
-  // Preparação básica de prompt (pode ser enriquecida via PreparePrompt Lambda; aqui, simplificado)
-  const prompt = buildPrompt({ text, context: input.context })
+  // Preferir prompt preparado quando existir
+  const prepared = input.prepared || null
+  let promptSource = 'local'
+  let prompt
+  if (prepared && typeof prepared.composite === 'string' && prepared.composite.trim().length > 0) {
+    prompt = prepared.composite
+    promptSource = 'prepared'
+  } else {
+    prompt = buildPrompt({ text, context: input.context })
+  }
 
   const outMsgId = randomUUID()
   const streamFn = getStreamForProvider(ENV.provider)
@@ -315,12 +270,10 @@ export const handler = async (event) => {
   let firstTokenAt = 0
   let totalChars = 0
   let aggregated = ''
-  let errorOccurred = false
 
-  logger.info({ msg: 'generate.start', provider: ENV.provider, model: ENV.model, correlationId, messageId, sequence })
+  logger.info({ msg: 'generate.start', provider: ENV.provider, model: ENV.model, correlationId, messageId, sequence, promptSource })
 
   try {
-    // Chamada ao LLM com retry (transientes)
     const iterator = await withRetry('llm-stream', async () => streamFn({ model: ENV.model, inputText: prompt }), { tries: 2 })
 
     for await (const piece of iterator) {
@@ -344,8 +297,15 @@ export const handler = async (event) => {
 
     // Mensagem final
     const tokensOut = estimateTokensFromText(aggregated)
-    const tokensIn = estimateTokensFromText(prompt)
+    let tokensIn = estimateTokensFromText(prompt)
+    if (prepared?.budget) {
+      const approx = (prepared.budget.usedByHistory || 0)
+        + estimateTokensFromText(prepared.user || '')
+        + estimateTokensFromText(prepared.system || '')
+      tokensIn = Math.min(tokensIn, approx || tokensIn)
+    }
     const cost = estimateCostUSD(tokensIn, tokensOut)
+
     const finalPayload = {
       messageType: 'final',
       messageId: outMsgId,
@@ -358,7 +318,7 @@ export const handler = async (event) => {
     }
     await postToWs(ws, connectionId, finalPayload)
 
-    // EMF — métricas
+    // EMF
     emitEmf({
       Model: ENV.model,
       TTFTMs: firstTokenAt ? firstTokenAt - tStart : null,
@@ -366,12 +326,12 @@ export const handler = async (event) => {
       OutputChars: totalChars,
       Errors: 0,
       CostEstimateUSD: cost,
+      PromptSource: promptSource,
     })
 
     logger.info({ msg: 'generate.done', correlationId, messageId: outMsgId, chunks: chunkIndex, ttftMs: firstTokenAt ? firstTokenAt - tStart : null })
     return { statusCode: 200, body: JSON.stringify({ ok: true }) }
   } catch (err) {
-    errorOccurred = true
     logger.error({ msg: 'generate.error', correlationId, err: String(err?.message || err) })
     // Tenta sinalizar erro ao cliente (se conexão existir)
     try {
@@ -386,13 +346,12 @@ export const handler = async (event) => {
         payload: { text: 'Ocorreu um erro ao gerar a resposta. Tente novamente.' },
       })
     } catch {}
-
-    emitEmf({ Model: ENV.model, TTFTMs: null, Chunks: chunkIndex, OutputChars: totalChars, Errors: 1, CostEstimateUSD: 0 })
+    emitEmf({ Model: ENV.model, TTFTMs: null, Chunks: chunkIndex, OutputChars: totalChars, Errors: 1, CostEstimateUSD: 0, PromptSource: promptSource })
     return { statusCode: 500, body: JSON.stringify({ ok: false, error: 'generation_failed' }) }
   }
 }
 
-// --------------------------- Helpers específicos ----------------------------
+// --------------------------- Helpers ---------------------------
 function buildPrompt({ text, context }) {
   // Simples; PreparePrompt Lambda pode enriquecer em outra etapa
   const preface = 'Contexto: Você é um agente de investigação da AletheIA. Objetivo: explicar o problema e sugerir próximos passos curtos.'
@@ -400,17 +359,16 @@ function buildPrompt({ text, context }) {
   const histStr = history.map((h) => `- ${h.role || 'user'}: ${truncate(h.text || '', 180)}`).join('\n')
   return [preface, histStr ? `Histórico:\n${histStr}` : null, `Pergunta:\n${text}`].filter(Boolean).join('\n\n')
 }
+const truncate = (s, n = 180) => (s || '').length > n ? String(s).slice(0, n) + '…' : String(s || '')
 
-function truncate(s, n) { return s.length > n ? s.slice(0, n) + '…' : s }
-
-function emitEmf({ Model, TTFTMs, Chunks, OutputChars, Errors, CostEstimateUSD }) {
+function emitEmf({ Model, TTFTMs, Chunks, OutputChars, Errors, CostEstimateUSD, PromptSource }) {
   const emf = {
     _aws: {
       Timestamp: Date.now(),
       CloudWatchMetrics: [
         {
           Namespace: 'AletheIA',
-          Dimensions: [['Service', 'Model']],
+          Dimensions: [['Service', 'Model', 'PromptSource']],
           Metrics: [
             { Name: 'TTFTMs', Unit: 'Milliseconds' },
             { Name: 'Chunks', Unit: 'Count' },
@@ -423,6 +381,7 @@ function emitEmf({ Model, TTFTMs, Chunks, OutputChars, Errors, CostEstimateUSD }
     },
     Service: 'chat-stream',
     Model,
+    PromptSource: PromptSource || 'local',
     TTFTMs: TTFTMs ?? 0,
     Chunks: Chunks ?? 0,
     OutputChars: OutputChars ?? 0,
