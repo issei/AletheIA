@@ -1,0 +1,24 @@
+name: Terraform Plan
+on:
+  pull_request:
+    paths: ['infra/**']
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write     # OIDC
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+      - name: Configure AWS via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::<ACCOUNT_ID>:role/gha-oidc-terraform
+          aws-region: us-east-1
+      - name: Terraform Init
+        working-directory: infra/terraform/envs/dev
+        run: terraform init -input=false
+      - name: Terraform Plan
+        working-directory: infra/terraform/envs/dev
+        run: terraform plan -input=false -out=tfplan

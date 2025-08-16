@@ -1,0 +1,26 @@
+name: Validate planning
+on:
+  pull_request:
+    paths:
+      - '.planning/tasks.json'
+      - '.planning/lists.json'
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install deps
+        run: |
+          npm i -g ajv-cli jsonlint
+      - name: Lint JSON
+        run: |
+          jsonlint -q .planning/tasks.json
+          jsonlint -q .planning/lists.json
+      - name: Validate Schema (se existir)
+        run: |
+          if [ -f .planning/schema.tasks.json ]; then ajv validate -s .planning/schema.tasks.json -d .planning/tasks.json; fi
+          if [ -f .planning/schema.lists.json ]; then ajv validate -s .planning/schema.lists.json -d .planning/lists.json; fi

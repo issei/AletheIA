@@ -1,0 +1,13 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": ["defaultListId", "assignees"],
+  "properties": {
+    "defaultListId": {"type": "string", "minLength": 5},
+    "assignees": {
+      "type": "object",
+      "additionalProperties": {"type": "string"}
+    }
+  },
+  "additionalProperties": false
+}
