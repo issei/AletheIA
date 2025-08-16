@@ -1,0 +1,20 @@
+{
+  "runtime": "nodejs20.x",
+  "functions": [
+    {
+      "name": "GenerateChunk",
+      "entry": "src/GenerateChunk.js",
+      "handler": "index.handler"
+    },
+    {
+      "name": "PreparePrompt",
+      "entry": "src/PreparePrompt.js",
+      "handler": "index.handler"
+    },
+    {
+      "name": "SaveChatHistory",
+      "entry": "src/SaveChatHistory.js",
+      "handler": "index.handler"
+    }
+  ]
+}
