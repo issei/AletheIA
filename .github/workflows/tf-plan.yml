@@ -9,7 +9,7 @@ jobs:
       id-token: write     # OIDC
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: hashicorp/setup-terraform@v3
       - name: Configure AWS via OIDC
         uses: aws-actions/configure-aws-credentials@v4
