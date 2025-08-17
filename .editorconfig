@@ -1,0 +1,78 @@
+# AletheIA — EditorConfig
+# Padrões consistentes entre IDEs/editores
+
+root = true
+
+# Regras globais
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 2
+# Nem todo editor respeita, mas ajuda
+max_line_length = 120
+
+# JavaScript/TypeScript/Node
+[*.{js,jsx,ts,tsx,cjs,mjs}]
+indent_style = space
+indent_size = 2
+
+# JSON / JSONC
+[*.{json,jsonc}]
+indent_style = space
+indent_size = 2
+
+# YAML (CI, Terraform vars, etc.)
+[*.{yml,yaml}]
+indent_style = space
+indent_size = 2
+
+# Markdown (preserva dois espaços no fim de linha para <br>)
+[*.md]
+trim_trailing_whitespace = false
+insert_final_newline = true
+max_line_length = off
+
+# Terraform
+[*.{tf,tfvars}]
+indent_style = space
+indent_size = 2
+
+# Python
+[*.py]
+indent_style = space
+indent_size = 4
+
+# Go (gofmt usa tabs; editorconfig só sugere visualização)
+[*.go]
+indent_style = tab
+indent_size = 4
+tab_width = 4
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# Shell scripts
+[*.{sh,bash}]
+indent_style = space
+indent_size = 2
+
+# Makefile (tabs obrigatórios)
+[Makefile]
+indent_style = tab
+
+# HTML/CSS/SCSS
+[*.{html,css,scss}]
+indent_style = space
+indent_size = 2
+
+# TOML (ex.: pyproject)
+[*.toml]
+indent_style = space
+indent_size = 2
+
+# Dockerfile
+[Dockerfile]
+indent_style = space
+indent_size = 2

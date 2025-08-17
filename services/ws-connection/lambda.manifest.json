@@ -1,0 +1,20 @@
+{
+  "runtime": "nodejs20.x",
+  "functions": [
+    {
+      "name": "ConnectFunction",
+      "entry": "src/ConnectFunction.js",
+      "handler": "index.handler"
+    },
+    {
+      "name": "disconnectWS",
+      "entry": "src/disconnectWS.js",
+      "handler": "index.handler"
+    },
+    {
+      "name": "WebSocketResponder",
+      "entry": "src/WebSocketResponder.js",
+      "handler": "index.handler"
+    }
+  ]
+}

@@ -1,0 +1,88 @@
+# AletheIA — .prettierignore
+# Ignora artefatos/binaries/caches para acelerar o Prettier
+
+# Node / JS
+node_modules/
+npm-debug.log*
+yarn-error.log*
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
+.eslintcache
+
+# Build / bundles / coverage
+build/
+dist/
+out/
+.next/
+.nuxt/
+coverage/
+.turbo/
+.cache/
+.tmp/
+
+# Artifacts gerados por scripts
+**/*.zip
+**/*.tar
+**/*.tgz
+**/*.map
+**/*.sha256
+
+# Serverless / SAM / CDK
+.serverless/
+.aws-sam/
+.cdk.out/
+
+# Terraform
+infra/terraform/.terraform/
+**/.terraform/
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+.terraform.lock.hcl
+.terragrunt-cache/
+
+# Python
+**/__pycache__/
+**/*.pyc
+**/.pytest_cache/
+**/.venv/
+**/venv/
+htmlcov/
+
+# Go
+**/bin/
+**/vendor/
+
+# Lambdas (builder)
+dist/lambdas/
+
+# OS/Editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Binários e mídias (não formatáveis)
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.webp
+*.ico
+*.pdf
+*.wasm
+*.woff
+*.woff2
+*.ttf
+*.eot
+*.mp4
+*.mp3
+*.mov
+*.7z
+*.gz
+*.bz2
+
+# Relatórios/Planos
+**/*.sarif
+**/*.plan

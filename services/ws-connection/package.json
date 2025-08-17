@@ -1,0 +1,33 @@
+{
+  "name": "@aletheia/ws-connection",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AletheIA — Handlers do WebSocket ($connect, $disconnect) e publicador (WebSocketResponder) para API Gateway.",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "Proprietary",
+  "main": "src/ConnectFunction.js",
+  "files": [
+    "src",
+    "lambda.manifest.json"
+  ],
+  "keywords": [
+    "aws-lambda",
+    "apigateway",
+    "websocket",
+    "aletheia"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/<owner>/<repo>.git",
+    "directory": "services/ws-connection"
+  },
+  "packageManager": "npm@10",
+  "dependencies": {
+    "@aws-sdk/client-apigatewaymanagementapi": "^3.600.0",
+    "@aws-sdk/client-dynamodb": "^3.600.0",
+    "@aws-sdk/lib-dynamodb": "^3.600.0"
+  }
+}
