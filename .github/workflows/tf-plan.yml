@@ -12,7 +12,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: hashicorp/setup-terraform@v3
       - name: Configure AWS via OIDC
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v5
         with:
           role-to-assume: arn:aws:iam::<ACCOUNT_ID>:role/gha-oidc-terraform
           aws-region: us-east-1
