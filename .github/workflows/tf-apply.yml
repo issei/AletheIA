@@ -43,7 +43,7 @@ jobs:
           terraform_wrapper: false
 
       - name: Configure AWS via OIDC (DEV)
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v5
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ secrets.AWS_REGION || 'us-east-1' }}
@@ -83,7 +83,7 @@ jobs:
           terraform_wrapper: false
 
       - name: Configure AWS via OIDC (${{ inputs.environment }})
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v5
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ secrets.AWS_REGION || 'us-east-1' }}
